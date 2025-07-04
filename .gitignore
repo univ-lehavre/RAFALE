@@ -4,3 +4,6 @@
 .Ruserdata
 tests/testthat/*.txt
 tests/testthat/*.rds
+inst/doc
+/doc/
+/Meta/

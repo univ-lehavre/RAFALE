@@ -1,0 +1,74 @@
+---
+title: "Prise en main du package RAFALE"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Prise en main du package RAFALE}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(RAFALE)
+```
+
+# Introduction
+
+**RAFALE** (Récupération Automatique Fiable d'APIs avec Limites et Erreurs) est une classe R6 permettant de scrapper facilement des APIs paginées tout en gérant le débit, les erreurs et la persistance des données.
+
+# Création d'un client RAFALE
+
+Pour commencer, créez un nouvel objet RAFALE en spécifiant l'URL de l'API :
+
+```{r eval=FALSE}
+client <- RAFALE$new(
+  url = "https://api.exemple.com/data",
+  mailto = "votre.email@exemple.com", # optionnel
+  query = list(param1 = "valeur"),
+  per_page = 100,
+  max_pages = 10,
+  rate_per_sec = 5,
+  max_daily = 1000,
+  fallback_file = "resultats.rds"
+)
+```
+
+# Scraping d'une API
+
+Pour récupérer toutes les données paginées de l'API :
+
+```{r eval=FALSE}
+resultats <- client$scrape(show_progress = TRUE)
+```
+
+Le résultat est un tibble contenant toutes les données collectées.
+
+# Gestion de la persistance
+
+RAFALE sauvegarde automatiquement la progression et les résultats dans des fichiers RDS.  
+Vous pouvez reprendre un scraping interrompu sans perte de données.
+
+# Gestion des erreurs et du débit
+
+- Les erreurs réseau sont automatiquement loguées.
+- Le débit de requêtes est limité selon vos paramètres (`rate_per_sec`, `max_daily`).
+- La classe gère la reprise après interruption.
+
+# Exemple complet
+
+```{r eval=FALSE}
+client <- RAFALE$new(
+  url = "https://api.exemple.com/data",
+  per_page = 50
+)
+donnees <- client$scrape()
+head(donnees)
+```
+
+# Pour aller plus loin
+
+Consultez la documentation de chaque méthode avec `?RAFALE` ou explorez les sources du package.
+
