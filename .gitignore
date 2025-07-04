@@ -1,0 +1,6 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+tests/testthat/*.txt
+tests/testthat/*.rds
