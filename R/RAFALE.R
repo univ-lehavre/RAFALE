@@ -139,7 +139,7 @@ RAFALE <- R6Class("RAFALE",
       if (file.exists(self$page_file)) file.remove(self$page_file)
     },
 
-    scrape = function(show_progress = TRUE) {
+    scrape = function(show_progress = TRUE, tibble = TRUE) {
       start_pg <- self$get_start_page()
       q1 <- self$build_query(start_pg)
       message(sprintf("Fetching page %d", start_pg))
@@ -170,7 +170,7 @@ RAFALE <- R6Class("RAFALE",
       }
 
       self$clear_progress()
-      final <- bind_rows(all) |> tibble()
+      final <- if (tibble) bind_rows(all) |> tibble() else bind_rows(all)
       saveRDS(final, self$fallback_file)
       final
     }
