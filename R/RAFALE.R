@@ -38,13 +38,7 @@
 #' @name RAFALE
 #' @export
 
-library(R6)
-library(httr)
-library(jsonlite)
-library(dplyr)
-library(progress)
-
-RAFALE <- R6Class("RAFALE",
+RAFALE <- R6::R6Class("RAFALE",
   public = list(
     url            = NULL,
     mailto         = NULL,
@@ -87,32 +81,42 @@ RAFALE <- R6Class("RAFALE",
     },
 
     log_error = function(msg) {
-      cat(sprintf("[%s] %s\n", Sys.time(), msg), file = self$log_file, append = TRUE)
+      cat(
+        sprintf("[%s] %s\n", Sys.time(), msg),
+        file = self$log_file, append = TRUE
+      )
     },
 
     fetch_json = function(query, max_tries = 3) {
       attempt <- 1
+      last_error <- NULL
       repeat {
         self$check_daily_limit()
         res <- tryCatch(
-          GET(self$url, query = query, timeout(10)),
+          httr::GET(self$url, query = query, httr::timeout(10)),
           error = function(e) e
         )
         if (inherits(res, "error")) {
-          self$log_error(paste("Erreur réseau:", res$message))
-        } else if (!http_error(res)) {
+          last_error <- paste("Erreur réseau:", res$message)
+          self$log_error(last_error)
+        } else if (!httr::http_error(res)) {
           Sys.sleep(self$min_delay)
-          return(fromJSON(content(res, "text", encoding = "UTF-8"), flatten = FALSE))
+          return(jsonlite::fromJSON(httr::content(res, "text", encoding = "UTF-8"), flatten = FALSE))
         } else {
-          code <- status_code(res)
+          code <- httr::status_code(res)
           if (code %in% c(429, 500:599)) {
             self$min_delay <- min(self$min_delay * 1.5, 60)
-            self$log_error(sprintf("HTTP %d → délai augmenté à %.1fs", code, self$min_delay))
+            last_error <- sprintf("HTTP %d → délai augmenté à %.1fs", code, self$min_delay)
+            self$log_error(last_error)
           } else {
-            self$log_error(sprintf("HTTP %d : %s", code, self$url))
+            last_error <- sprintf("HTTP %d : %s", code, self$url)
+            self$log_error(last_error)
           }
         }
-        if (attempt >= max_tries) stop(sprintf("Échec après %d tentatives", attempt))
+        if (attempt >= max_tries) {
+          self$log_error(sprintf("Échec après %d tentatives : %s", attempt, last_error))
+          stop(sprintf("Échec après %d tentatives", attempt))
+        }
         Sys.sleep(2 ^ (attempt - 1))
         attempt <- attempt + 1
       }
@@ -151,7 +155,7 @@ RAFALE <- R6Class("RAFALE",
       if (start_pg == 1L) all[[1]] <- res$results
 
       if (show_progress) {
-        pb <- progress_bar$new(
+        pb <- progress::progress_bar$new(
           total = n_pages - start_pg + 1,
           format = "  [:bar] :current/:total (:percent)"
         )
@@ -163,14 +167,14 @@ RAFALE <- R6Class("RAFALE",
         tryCatch({
           res <- self$fetch_json(query)
           all[[pg]] <- res$results
-          self$save_progress(pg, bind_rows(all))
+          self$save_progress(pg, dplyr::bind_rows(all))
         }, error = function(e) {
           self$log_error(sprintf("Erreur page %d : %s", pg, e$message))
         })
       }
 
       self$clear_progress()
-      final <- if (tibble) bind_rows(all) |> tibble() else bind_rows(all)
+      final <- if (tibble) dplyr::bind_rows(all) |> tibble::tibble() else dplyr::bind_rows(all)
       saveRDS(final, self$fallback_file)
       final
     }
