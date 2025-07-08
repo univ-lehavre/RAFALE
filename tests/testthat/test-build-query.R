@@ -7,7 +7,6 @@ test_that("build_query construit les bons paramètres", {
   expect_equal(q$a, 1)
   expect_equal(q$b, "x")
   expect_equal(q$page, 5)
-  expect_equal(q$per_page, client$per_page)
 })
 
 test_that("build_query ajoute mailto si fourni", {

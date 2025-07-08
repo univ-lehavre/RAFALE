@@ -100,13 +100,21 @@ RAFALE <- R6::R6Class("RAFALE",
           last_error <- paste("Erreur réseau:", res$message)
           self$log_error(last_error)
         } else if (!httr::http_error(res)) {
+          # Réinitialisation du délai après succès
+          self$min_delay <- 1 / self$rate_per_sec
           Sys.sleep(self$min_delay)
-          return(jsonlite::fromJSON(httr::content(res, "text", encoding = "UTF-8"), flatten = FALSE))
+          return(
+            jsonlite::fromJSON(httr::content(
+              res, "text", encoding = "UTF-8"
+            ), flatten = FALSE)
+          )
         } else {
           code <- httr::status_code(res)
           if (code %in% c(429, 500:599)) {
             self$min_delay <- min(self$min_delay * 1.5, 60)
-            last_error <- sprintf("HTTP %d → délai augmenté à %.1fs", code, self$min_delay)
+            last_error <- sprintf(
+              "HTTP %d → délai augmenté à %.1fs", code, self$min_delay
+            )
             self$log_error(last_error)
           } else {
             last_error <- sprintf("HTTP %d : %s", code, self$url)
@@ -114,7 +122,9 @@ RAFALE <- R6::R6Class("RAFALE",
           }
         }
         if (attempt >= max_tries) {
-          self$log_error(sprintf("Échec après %d tentatives : %s", attempt, last_error))
+          self$log_error(sprintf(
+            "Échec après %d tentatives : %s", attempt, last_error
+          ))
           stop(sprintf("Échec après %d tentatives", attempt))
         }
         Sys.sleep(2 ^ (attempt - 1))
@@ -143,7 +153,7 @@ RAFALE <- R6::R6Class("RAFALE",
       if (file.exists(self$page_file)) file.remove(self$page_file)
     },
 
-    scrape = function(show_progress = TRUE, tibble = TRUE) {
+    scrape = function(show_progress = TRUE) {
       start_pg <- self$get_start_page()
       q1 <- self$build_query(start_pg)
       message(sprintf("Fetching page %d", start_pg))
@@ -151,32 +161,41 @@ RAFALE <- R6::R6Class("RAFALE",
       total_pages <- ceiling(res$meta$count / res$meta$per_page)
       n_pages <- min(total_pages, self$max_pages)
       message(sprintf("Récupération de %d pages", n_pages))
-      all <- list()
-      if (start_pg == 1L) all[[1]] <- res$results
+
+      # Initialisation du résultat
+      res_final <- tibble::as_tibble(res$results)
+
+      # Si reprise, charger les anciennes données
+      if (start_pg > 1L && file.exists(self$fallback_file)) {
+        old_data <- readRDS(self$fallback_file)
+        res_final <- dplyr::bind_rows(old_data, res_final)
+      }
 
       if (show_progress) {
         pb <- progress::progress_bar$new(
           total = n_pages - start_pg + 1,
           format = "  [:bar] :current/:total (:percent)"
         )
+        pb$tick()
       }
 
-      for (pg in seq(start_pg + (start_pg == 1L), n_pages)) {
+      for (pg in seq(start_pg + 1, n_pages)) {
         if (show_progress) pb$tick()
         query <- self$build_query(pg)
         tryCatch({
           res <- self$fetch_json(query)
-          all[[pg]] <- res$results
-          self$save_progress(pg, dplyr::bind_rows(all))
+          res_final <- dplyr::bind_rows(
+            res_final, tibble::as_tibble(res$results)
+          )
+          self$save_progress(pg, res_final)
         }, error = function(e) {
           self$log_error(sprintf("Erreur page %d : %s", pg, e$message))
         })
       }
 
       self$clear_progress()
-      final <- if (tibble) dplyr::bind_rows(all) |> tibble::tibble() else dplyr::bind_rows(all)
-      saveRDS(final, self$fallback_file)
-      final
+      saveRDS(res_final, self$fallback_file)
+      res_final
     }
   )
 )

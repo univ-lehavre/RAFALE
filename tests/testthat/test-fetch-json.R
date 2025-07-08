@@ -1,3 +1,6 @@
+library(testthat)
+library(RAFALE)
+
 test_that("fetch_json fonctionne pour une réponse simple", {
   client <- RAFALE$new(url = "https://httpbin.org/json")
   out <- client$fetch_json(list())
