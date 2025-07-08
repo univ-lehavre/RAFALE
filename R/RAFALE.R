@@ -171,16 +171,7 @@ RAFALE <- R6::R6Class("RAFALE",
         res_final <- dplyr::bind_rows(old_data, res_final)
       }
 
-      if (show_progress) {
-        pb <- progress::progress_bar$new(
-          total = n_pages - start_pg + 1,
-          format = "  [:bar] :current/:total (:percent)"
-        )
-        pb$tick()
-      }
-
       for (pg in seq(start_pg + 1, n_pages)) {
-        if (show_progress) pb$tick()
         query <- self$build_query(pg)
         tryCatch({
           res <- self$fetch_json(query)
