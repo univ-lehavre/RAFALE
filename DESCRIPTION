@@ -1,7 +1,7 @@
 Package: RAFALE
 Type: Package
 Title: Récupération Automatique Fiable d'APIs avec Limites et Erreurs 
-Version: 1.1.3
+Version: 1.1.4
 Authors@R: 
     person("Pierre-Olivier", "Chasset", 
            email = "pierre-olivier.chasset@univ-lehavre.fr", 
@@ -14,7 +14,6 @@ Imports:
     httr,
     jsonlite,
     dplyr,
-    progress,
     R6
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
